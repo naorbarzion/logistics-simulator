@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>אפליקציית שליח - טרייסר</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base Styles */
+        body { 
+            font-family: 'Rubik', sans-serif; 
+            background: #f3f4f6;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            gap: 2rem;
+            overflow-x: hidden;
+        }
+
+        /* Phone Frame */
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: white;
+            border-radius: 45px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.1);
+            border: 12px solid #1a1a1a;
+            transform-origin: center;
+            transition: transform 0.3s ease;
+        }
+
+        .phone-frame:hover {
+            transform: scale(1.02);
+        }
+
+        /* Dynamic Notch */
+        .dynamic-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 25px;
+            background: #1a1a1a;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            z-index: 1000;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            height: 44px;
+            background: #1a1a1a;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+        }
+
+        /* Progress Bar */
+        .progress-track {
+            width: 100%;
+            height: 4px;
+            background: #f0f0f0;
+            border-radius: 2px;
+            position: relative;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #0078ff, #00b4d8);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0%;
+        }
+
+        /* Task Card */
+        .task-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin: 1rem;
+            padding: 1.5rem;
+            transform-origin: top;
+            animation: cardEnter 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        @keyframes cardEnter {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Action Buttons */
+        .action-button {
+            background: linear-gradient(135deg, #0078ff 0%, #00b4d8 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,120,255,0.2);
+        }
+
+        .action-button:active::after {
+            opacity: 0.2;
+        }
+
+        /* Modal Interfaces */
+        .modal-interface {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            animation: modalFadeIn 0.3s ease forwards;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Camera Interface */
+        .camera-interface {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 2rem;
+            z-index: 2000;
+        }
+
+        .camera-button {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: white;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .camera-button:hover {
+            transform: scale(1.1);
+        }
+
+        /* Progress Steps */
+        .steps-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 1rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: stepEnter 0.5s ease forwards;
+        }
+
+        .step:nth-child(2) { animation-delay: 0.1s; }
+        .step:nth-child(3) { animation-delay: 0.2s; }
+        .step:nth-child(4) { animation-delay: 0.3s; }
+        .step:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes stepEnter {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-icon {
+            background: #0078ff;
+            color: white;
+            transform: scale(1.2);
+        }
+
+        /* WhatsApp Section */
+        .whatsapp-container {
+            background: #e5ddd5;
+            height: calc(100% - 120px);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .whatsapp-message {
+            max-width: 80%;
+            margin-right: auto;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #dcf8c6;
+            border-radius: 12px;
+            position: relative;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: messageEnter 0.5s ease forwards;
+        }
+
+        @keyframes messageEnter {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Courier App -->
+    <div class="phone-frame" id="courier-app">
+        <!-- Dynamic Notch -->
+        <div class="dynamic-notch"></div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span id="time">9:41</span>
+            <div>
+                <span class="mr-2">5G</span>
+                <span class="mr-2">100%</span>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <header class="bg-slate-700 text-white p-4">
+            <div class="flex items-center justify-between">
+                <img src="https://tracer.co.il/wp-content/uploads/elementor/thumbs/Logo-H-p8d906f0bmrgobnn9uwquzibery89mtbvr1plpc910.png" 
+                     alt="Tracer Logo" 
+                     class="h-8">
+                <h1 class="text-xl font-bold">משימות שליח</h1>
+            </div>
+        </header>
+
+        <!-- Progress Steps -->
+        <div class="steps-container">
+            <div class="step active">
+                <div class="step-icon">📋</div>
+                <span class="step-label">התקבל</span>
+            </div>
+            <div class="step">
+                <div class="step-icon">📦</div>
+                <span class="step-label">נארז</span>
+            </div>
+            <div class="step">
+                <div class="step-icon">🚗</div>
+                <span class="step-label">בדרך</span>
+            </div>
+            <div class="step">
+                <div class="step-icon">📍</div>
+                <span class="step-label">קרוב</span>
+            </div>
+            <div class="step">
+                <div class="step-icon">✅</div>
+                <span class="step-label">הושלם</span>
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <div class="p-4">
+            <!-- משימה ראשונה -->
+            <div class="task-card">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="font-bold text-lg">ישראל ישראלי</h3>
+                        <p class="text-sm text-gray-600">משלוח #12345</p>
+                    </div>
+                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">14:00-15:00</span>
+                </div>
+
+                <div class="space-y-2 mb-4">
+                    <div class="flex items-center gap-2">
+                        <span>📍</span>
+                        <span>רוטשילד 50, תל אביב</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span>📦</span>
+                        <span>ציוד משרדי - 2 קופסאות</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="space-y-2">
+                    <div class="flex gap-2">
+                        <button class="action-button flex-1" onclick="navigateToWaze()">
+                            <span>🚗</span>
+                            נווט
+                        </button>
+                        <button class="action-button flex-1" onclick="callCustomer()">
+                            <span>📞</span>
+                            התקשר
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="action-button flex-1" onclick="openCamera()">
+                            <span>📸</span>
+                            צלם
+                        </button>
+                        <button class="action-button flex-1" onclick="openSignature()">
+                            <span>✍️</span>
+                            החתמה
+                        </button>
+                        <button class="action-button flex-1" onclick="addNote()">
+                            <span>📝</span>
+                            הערות
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Interfaces -->
+        <div class="camera-interface">
+            <div class="camera-button" onclick="closeCamera()"></div>
+        </div>
+
+        <div class="modal-interface" id="signature-modal">
+            <!-- תוכן מודל החתימה יתווסף דינמית -->
+        </div>
+
+        <div class="modal-interface" id="note-modal">
+            <!-- תוכן מודל ההערות יתווסף דינמית -->
+        </div>
+    </div>
+
+    <!-- Customer WhatsApp View -->
+    <div class="phone-frame" id="customer-app">
+        <div class="status-bar">
+            <span>9:41</span>
+            <div>
+                <span class="mr-2">5G</span>
+                <span class="mr-2">100%</span>
+            </div>
+        </div>
+
+        <div class="bg-[#075e54] text-white p-4">
+            <div class="flex items-center gap-3">
+                <img src="https://tracer.co.il/wp-content/uploads/elementor/thumbs/Logo-H-p8d906f0bmrgobnn9uwquzibery89mtbvr1plpc910.png" 
+                     alt="Tracer Logo" 
+                     class="h-8 rounded-full">
+                <div>
+                    <div class="font-bold">טרייסר לוגיסטיקס</div>
+                    <div class="text-sm opacity-75">אונליין</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="whatsapp-container" id="whatsapp-messages"></div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        
+        // Auto-start when page loads
+        window.onload = function() {
+            updateStatusBarTime();
+            setInterval(updateStatusBarTime, 60000);
+            startDeliveryProcess();
+            initializeAnimations();
+        };
+
+// Initialize GSAP animations
+function initializeAnimations() {
+   gsap.from(".phone-frame", {
+       duration: 1,
+       y: 50,
+       opacity: 0,
+       ease: "power3.out",
+       stagger: 0.2
+   });
+
+   gsap.from(".task-card", {
+       duration: 0.5,
+       y: 20,
+       opacity: 0,
+       ease: "power2.out",
+       delay: 0.5
+   });
+
+   gsap.from(".step", {
+       duration: 0.3,
+       y: 10,
+       opacity: 0,
+       stagger: 0.1,
+       delay: 0.8
+   });
+}
+
+function startDeliveryProcess() {
+   // התראה ראשונית
+   setTimeout(() => {
+       addWhatsAppMessage(`
+           <div>
+               <div class="font-bold">המשלוח התקבל במערכת! 📦</div>
+               <div class="text-sm">
+                   משלוח #12345 התקבל במערכת שלנו.
+                   <br>
+                   נעדכן אותך על התקדמות המשלוח!
+               </div>
+               <div class="text-xs text-gray-500 mt-1">${getCurrentTime()} ✓✓</div>
+           </div>
+       `);
+   }, 1000);
+
+   // שלב האריזה
+   setTimeout(() => {
+       updateStep(2);
+       addWhatsAppMessage(`
+           <div>
+               <div class="font-bold">המשלוח נארז! 📦</div>
+               <div class="text-sm">
+                   המשלוח שלך נארז ויצא לדרך.
+                   <br>
+                   זמן הגעה משוער: היום בין השעות 14:00-15:00
+               </div>
+               <div class="text-xs text-gray-500 mt-1">${getCurrentTime()} ✓✓</div>
+           </div>
+       `);
+   }, 3000);
+
+   // שלב בדרך
+   setTimeout(() => {
+       updateStep(3);
+       addWhatsAppMessage(`
+           <div>
+               <div class="font-bold">השליח בדרך! 🚗</div>
+               <div class="text-sm">
+                   השליח יצא לכיוונך.
+                   <br>
+                   ניתן לעקוב אחר המיקום בזמן אמת.
+               </div>
+               <div class="text-xs text-gray-500 mt-1">${getCurrentTime()} ✓✓</div>
+           </div>
+       `);
+   }, 5000);
+
+   // 5 דקות לפני הגעה
+   setTimeout(() => {
+       updateStep(4);
+       addWhatsAppMessage(`
+           <div>
+               <div class="font-bold">השליח מגיע בקרוב! ⏱️</div>
+               <div class="text-sm">
+                   השליח יגיע אליך תוך כ-5 דקות.
+                   <br>
+                   נא להכין אמצעי זיהוי.
+               </div>
+               <div class="text-xs text-gray-500 mt-1">${getCurrentTime()} ✓✓</div>
+           </div>
+       `);
+   }, 7000);
+
+   // סיום משלוח
+   setTimeout(() => {
+       updateStep(5);
+       addWhatsAppMessage(`
+           <div>
+               <div class="font-bold">המשלוח הושלם! ✅</div>
+               <div class="text-sm">
+                   תודה שבחרת בטרייסר לוגיסטיקס!
+               </div>
+               <div class="text-xs text-gray-500 mt-1">${getCurrentTime()} ✓✓</div>
+           </div>
+       `);
+   }, 9000);
+}
+
+// Update progress steps
+function updateStep(step) {
+   currentStep = step;
+   gsap.to(".progress-bar", {
+       width: `${(step - 1) * 25}%`,
+       duration: 0.5,
+       ease: "power2.inOut"
+   });
+   
+   document.querySelectorAll('.step').forEach((stepElement, index) => {
+       if (index < step) {
+           stepElement.classList.add('active');
+           gsap.to(stepElement.querySelector('.step-icon'), {
+               scale: 1.2,
+               duration: 0.3,
+               ease: "back.out"
+           });
+       }
+   });
+}
+
+// Utility Functions
+function getCurrentTime() {
+   const now = new Date();
+   return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+}
+
+function updateStatusBarTime() {
+   const timeElements = document.querySelectorAll('.status-bar span:first-child');
+   const time = getCurrentTime();
+   timeElements.forEach(el => el.textContent = time);
+}
+
+// Action Functions
+function openCamera() {
+   const camera = document.querySelector('.camera-interface');
+   camera.style.display = 'flex';
+   gsap.from(camera, {
+       opacity: 0,
+       duration: 0.3
+   });
+}
+
+function closeCamera() {
+   const camera = document.querySelector('.camera-interface');
+   gsap.to(camera, {
+       opacity: 0,
+       duration: 0.3,
+       onComplete: () => camera.style.display = 'none'
+   });
+}
+
+function openSignature() {
+   const modal = document.getElementById('signature-modal');
+   modal.innerHTML = `
+       <div class="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+           <h3 class="text-lg font-bold mb-4">חתימת לקוח</h3>
+           <canvas id="signature-pad" class="border rounded-lg mb-4" width="100%" height="200"></canvas>
+           <div class="flex gap-2">
+               <button class="action-button flex-1" onclick="closeModal('signature-modal')">שמור</button>
+               <button class="action-button flex-1" onclick="closeModal('signature-modal')">ביטול</button>
+           </div>
+       </div>
+   `;
+   modal.style.display = 'flex';
+   gsap.from(modal.children[0], {
+       scale: 0.8,
+       opacity: 0,
+       duration: 0.3
+   });
+}
+
+function addNote() {
+   const modal = document.getElementById('note-modal');
+   modal.innerHTML = `
+       <div class="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+           <h3 class="text-lg font-bold mb-4">הוספת הערה</h3>
+           <textarea class="w-full border rounded-lg p-2 mb-4 h-32" placeholder="הכנס הערה..."></textarea>
+           <div class="flex gap-2">
+               <button class="action-button flex-1" onclick="closeModal('note-modal')">שמור</button>
+               <button class="action-button flex-1" onclick="closeModal('note-modal')">ביטול</button>
+           </div>
+       </div>
+   `;
+   modal.style.display = 'flex';
+   gsap.from(modal.children[0], {
+       scale: 0.8,
+       opacity: 0,
+       duration: 0.3
+   });
+}
+
+function closeModal(modalId) {
+   const modal = document.getElementById(modalId);
+   gsap.to(modal.children[0], {
+       scale: 0.8,
+       opacity: 0,
+       duration: 0.3,
+       onComplete: () => modal.style.display = 'none'
+   });
+}
+
+function navigateToWaze() {
+   const address = encodeURIComponent('רוטשילד 50, תל אביב');
+   window.open(`https://waze.com/ul?q=${address}`, '_blank');
+}
+
+function callCustomer() {
+   window.location.href = 'tel:054-1234567';
+}
+
+function addWhatsAppMessage(message) {
+   const container = document.getElementById('whatsapp-messages');
+   const messageDiv = document.createElement('div');
+   messageDiv.className = 'whatsapp-message';
+   messageDiv.innerHTML = message;
+   container.appendChild(messageDiv);
+   container.scrollTop = container.scrollHeight;
+   
+   gsap.from(messageDiv, {
+       y: 20,
+       opacity: 0,
+       duration: 0.5,
+       ease: "power2.out"
+   });
+}
+</script>
