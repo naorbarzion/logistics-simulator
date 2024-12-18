@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Tracer - קבלת הזמנות</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Rubik', sans-serif;
+            margin: 0;
+            background: #f3f4f6;
+            min-height: 100vh;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        #map-container {
+            height: 400px;
+        }
+        .order-card {
+            position: fixed;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            pointer-events: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Bar -->
+    <div class="fixed top-0 left-0 right-0 h-1 bg-gray-200 z-50">
+        <div id="progress-bar" class="h-full bg-blue-600 w-0 transition-all duration-300"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-slate-700 text-white p-4">
+        <div id="logo-container" class="flex items-center justify-between container mx-auto">
+            <div class="flex items-center gap-4">
+                <img src="https://tracer.co.il/wp-content/uploads/elementor/thumbs/Logo-H-p8d906f0bmrgobnn9uwquzibery89mtbvr1plpc910.png" 
+                     alt="Tracer Logo" 
+                     class="h-12">
+                <h1 class="text-2xl font-bold">קבלת הזמנות</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-sm">שלב 1: קליטת הזמנות אוטומטית</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto p-6">
+        <div class="grid grid-cols-2 gap-6">
+            <!-- Customer Website -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="border-b pb-4 mb-6">
+                    <h2 class="text-2xl font-bold">אתר הלקוח - הזמנת משלוח</h2>
+                    <p class="text-gray-600">הזמנות נכנסות בזמן אמת</p>
+                </div>
+                
+                <form id="customer-form" class="space-y-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 mb-2">שם לקוח</label>
+                            <input type="text" id="customer-name" class="w-full p-3 border rounded" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">טלפון</label>
+                            <input type="tel" id="customer-phone" class="w-full p-3 border rounded" readonly>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2">כתובת</label>
+                        <input type="text" id="customer-address" class="w-full p-3 border rounded" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2">תאריך ושעת איסוף</label>
+                        <input type="text" id="pickup-datetime" class="w-full p-3 border rounded" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2">פרטי המשלוח</label>
+                        <textarea id="order-details" class="w-full p-3 border rounded h-32" readonly></textarea>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tracer System -->
+            <div class="space-y-4">
+                <!-- Orders Table -->
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-box"></i>
+                        הזמנות פעילות
+                    </h2>
+                    <table class="w-full" id="orders-table">
+                        <thead>
+                            <tr class="border-b">
+                                <th class="p-2 text-right">#</th>
+                                <th class="p-2 text-right">לקוח</th>
+                                <th class="p-2 text-right">כתובת</th>
+                                <th class="p-2 text-right">זמן איסוף</th>
+                                <th class="p-2 text-right">סטטוס</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-body"></tbody>
+                    </table>
+                </div>
+
+                <!-- Map -->
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt"></i>
+                        מפת משלוחים
+                    </h2>
+                    <div id="map-container" class="rounded-lg"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample orders data
+        const orders = [
+            {
+                customer: "הכרוב החכם בעמ",
+                phone: "054-6358258",
+                address: "רוטשילד 50, תל אביב",
+                datetime: "17/12/2024 10:00",
+                details: "חבילת ציוד משרדי\nמשקל: 5 ק\"ג\nדחיפות: רגילה\nהערות: נא לתאם הגעה",
+                coords: [32.0853, 34.7818]
+            },
+            {
+                customer: "א.נ עבודות חשמל",
+                phone: "053-7894561",
+                address: "אלנבי 99, תל אביב",
+                datetime: "17/12/2024 11:30",
+                details: "ציוד חשמל\nמשקל: 8 ק\"ג\nדחיפות: גבוהה\nהערות: שביר",
+                coords: [32.0673, 34.7738]
+            },
+            // Add more orders...
+        ];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize map
+            const map = L.map('map-container').setView([32.0853, 34.7818], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            // Initial animation
+            gsap.from("#logo-container", {
+                opacity: 0,
+                y: -50,
+                duration: 1,
+                ease: "power2.out"
+            });
+
+            // Start processing orders automatically
+            await processOrders(map);
+        });
+
+        async function typeText(element, text) {
+            element.value = '';
+            for (let i = 0; i < text.length; i++) {
+                element.value += text[i];
+                await new Promise(r => setTimeout(r, 30));
+            }
+        }
+
+        async function processOrders(map) {
+            for (let i = 0; i < orders.length; i++) {
+                await processOrder(orders[i], i, map);
+            }
+
+            // After all orders are processed, redirect to optimization screen
+            setTimeout(() => {
+                window.location.href = 'optimization.html';
+            }, 2000);
+        }
+
+        async function processOrder(order, index, map) {
+            // Update progress
+            const progress = ((index + 1) / orders.length) * 33; // First stage is 33%
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+
+            // Fill form with typing effect
+            await typeText(document.getElementById('customer-name'), order.customer);
+            await typeText(document.getElementById('customer-phone'), order.phone);
+            await typeText(document.getElementById('customer-address'), order.address);
+            await typeText(document.getElementById('pickup-datetime'), order.datetime);
+            await typeText(document.getElementById('order-details'), order.details);
+
+            await new Promise(r => setTimeout(r, 500));
+
+            // Create floating order card
+            const orderCard = createOrderCard(order);
+            animateOrderToTable(orderCard, order, index);
+
+            // Add marker to map
+            const marker = L.marker(order.coords).addTo(map);
+            marker.bindPopup(`<b>${order.customer}</b><br>${order.address}`);
+
+            // Clear form
+            await new Promise(r => setTimeout(r, 1000));
+            document.getElementById('customer-name').value = '';
+            document.getElementById('customer-phone').value = '';
+            document.getElementById('customer-address').value = '';
+            document.getElementById('pickup-datetime').value = '';
+            document.getElementById('order-details').value = '';
+        }
+
+        function createOrderCard(order) {
+            const card = document.createElement('div');
+            card.className = 'order-card';
+            card.innerHTML = `
+                <div class="text-sm">
+                    <strong>${order.customer}</strong><br>
+                    ${order.address}
+                </div>
+            `;
+            document.body.appendChild(card);
+            return card;
+        }
+
+        async function animateOrderToTable(card, order, index) {
+            const form = document.getElementById('customer-form');
+            const table = document.getElementById('orders-table');
+            
+            const formRect = form.getBoundingClientRect();
+            const tableRect = table.getBoundingClientRect();
+
+            // Position card at form
+            card.style.left = `${formRect.left + 20}px`;
+            card.style.top = `${formRect.top + 20}px`;
+
+            // Animate to table
+            gsap.to(card, {
+                left: tableRect.left + 20,
+                top: tableRect.top + 20,
+                duration: 1,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    card.remove();
+                    addOrderToTable(order, index);
+                }
+            });
+        }
+
+        function addOrderToTable(order, index) {
+            const row = document.createElement('tr');
+            row.className = 'border-b hover:bg-gray-50 fade-in';
+            row.innerHTML = `
+                <td class="p-2">${index + 1}</td>
+                <td class="p-2">${order.customer}</td>
+                <td class="p-2">${order.address}</td>
+                <td class="p-2">${order.datetime}</td>
+                <td class="p-2">
+                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+                        התקבל
+                    </span>
+                </td>
+            `;
+            document.getElementById('orders-body').appendChild(row);
+        }
+    </script>
+</body>
+</html>
