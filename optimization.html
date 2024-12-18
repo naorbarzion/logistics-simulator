@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>אופטימיזציה של מסלולים - טרייסר</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Rubik', sans-serif; 
+            background: #f4f6f9; 
+            margin: 0; 
+        }
+        #map { 
+            height: 550px; 
+            border-radius: 8px; 
+            border: 2px solid #ddd; 
+        }
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 120, 255, 0.2);
+            z-index: 1000;
+            width: 450px;
+            display: none;
+        }
+        .stat-box {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #0078ff;
+        }
+        .highlight-section {
+            background: #f0f7ff;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 0.75rem 0;
+        }
+        .blink-animation {
+            animation: blink 2s infinite;
+        }
+        .attention-animation {
+            animation: attention 2s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        @keyframes attention {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 0 8px 32px rgba(0, 120, 255, 0.2);
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.02);
+                box-shadow: 0 16px 48px rgba(0, 120, 255, 0.4);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Bar -->
+    <div class="fixed top-0 left-0 right-0 h-1 bg-gray-200 z-50">
+        <div id="progress-bar" class="h-full bg-blue-600 w-0 transition-all duration-300"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-slate-700 text-white text-center py-4">
+        <h1 class="text-2xl font-bold">🚀 אופטימיזציה של מסלולים</h1>
+    </header>
+
+    <!-- Optimization Results Popup -->
+    <div id="popup" class="popup">
+        <div class="text-xl font-bold text-center mb-4 text-blue-600">
+            🎯 תהליך האופטימיזציה הושלם!
+        </div>
+
+        <div class="highlight-section blink-animation">
+            <div class="flex justify-between items-center">
+                <div>
+                    <div class="text-xl font-bold text-blue-600">250 קילומטרים</div>
+                    <div class="text-sm text-gray-600">חיסכון בנסיעה</div>
+                </div>
+                <div class="text-2xl">🚗</div>
+            </div>
+        </div>
+
+        <div class="highlight-section blink-animation">
+            <div class="flex justify-between items-center">
+                <div>
+                    <div class="text-xl font-bold text-blue-600">1.5 שעות</div>
+                    <div class="text-sm text-gray-600">חיסכון זמן לסדרן</div>
+                </div>
+                <div class="text-2xl">⏱️</div>
+            </div>
+        </div>
+
+        <div class="highlight-section blink-animation">
+            <div class="flex justify-between items-center">
+                <div>
+                    <div class="text-xl font-bold text-blue-600">3.5 שעות</div>
+                    <div class="text-sm text-gray-600">חיסכון זמן לשליחים</div>
+                </div>
+                <div class="text-2xl">⚡</div>
+            </div>
+        </div>
+
+        <!-- Distribution Section -->
+        <div class="highlight-section mt-4">
+            <div class="font-bold mb-2 text-center">חלוקת 100 נקודות בין 5 אזורים:</div>
+            <div class="space-y-2 text-gray-700">
+                <div class="flex items-center gap-2">📍 שליח\טכנאי צפון - 20 נקודות</div>
+                <div class="flex items-center gap-2">📍 שליח\טכנאי מרכז - 20 נקודות</div>
+                <div class="flex items-center gap-2">📍 שליח\טכנאי דרום - 20 נקודות</div>
+                <div class="flex items-center gap-2">📍 שליח\טכנאי שפלה - 20 נקודות</div>
+                <div class="flex items-center gap-2">📍 שליח\טכנאי ירושלים והסביבה - 20 נקודות</div>
+            </div>
+        </div>
+
+        <div class="highlight-section">
+            <div class="text-sm text-gray-600">
+                <span>📍 🛵 📡</span>
+                תוך כדי התחשבות במיקום הרכב בזמן אמת בשטח - GPS מחובר לרכב\קטנוע
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto p-6">
+        <!-- Map -->
+        <div id="map" class="mb-8"></div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-3 gap-6">
+            <div class="stat-box">
+                <div class="stat-icon">⚡</div>
+                <div>זמן שנחסך לשליחים</div>
+                <div class="text-2xl font-bold text-blue-600">3.5</div>
+                <div class="text-sm text-gray-600">שעות</div>
+            </div>
+            
+            <div class="stat-box">
+                <div class="stat-icon">⏱️</div>
+                <div>זמן שנחסך לסדרן</div>
+                <div class="text-2xl font-bold text-blue-600">1.5</div>
+                <div class="text-sm text-gray-600">שעות</div>
+            </div>
+            
+            <div class="stat-box">
+                <div class="stat-icon">🚗</div>
+                <div>קילומטרים שנחסכו</div>
+                <div class="text-2xl font-bold text-blue-600">250</div>
+                <div class="text-sm text-gray-600">ק"מ</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize map centered on Israel
+            const map = L.map('map').setView([31.7683, 35.2137], 8);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+            const colors = ["blue", "green", "orange", "purple", "cyan"];
+            const markers = [];
+
+            // Generate points within Israel's borders
+            function generatePointInIsrael() {
+                const bounds = {
+                    north: 33.3,
+                    south: 29.5,
+                    west: 34.2,
+                    east: 35.9
+                };
+                return [
+                    bounds.south + Math.random() * (bounds.north - bounds.south),
+                    bounds.west + Math.random() * (bounds.east - bounds.west)
+                ];
+            }
+
+            // Generate 100 points
+            const points = Array.from({ length: 100 }, generatePointInIsrael);
+
+            // Add initial markers
+            points.forEach((point, i) => {
+                const marker = L.circleMarker(point, { 
+                    color: 'red', 
+                    radius: 5 
+                }).addTo(map);
+                markers.push(marker);
+            });
+
+            // Start optimization process
+            setTimeout(() => {
+                // Optimize markers
+                markers.forEach((marker, i) => {
+                    const courierIndex = i % 5;
+                    const basePoints = [
+                        [32.0853, 34.7818], // Tel Aviv
+                        [31.7683, 35.2137], // Jerusalem
+                        [32.7940, 34.9896], // Haifa
+                        [31.2528, 34.7915], // Beer Sheva
+                        [32.9150, 35.3027]  // Tsfat
+                    ];
+
+                    const base = basePoints[courierIndex];
+                    const spread = 0.2;
+                    const angle = (i / 20) * Math.PI * 2;
+                    
+                    const newLat = base[0] + Math.cos(angle) * spread * Math.random();
+                    const newLng = base[1] + Math.sin(angle) * spread * Math.random();
+
+                    gsap.to(marker._latlng, {
+                        lat: newLat,
+                        lng: newLng,
+                        duration: 1,
+                        onUpdate: () => marker.setLatLng(marker._latlng)
+                    });
+
+                    marker.setStyle({ color: colors[courierIndex] });
+                });
+
+                // Show popup after optimization
+                setTimeout(() => {
+                    const popup = document.getElementById('popup');
+                    popup.style.display = 'block';
+                    popup.classList.add('attention-animation');
+
+                    // Redirect after showing results
+                    setTimeout(() => {
+                        popup.style.display = 'none';
+                        window.location.href = "courier-app.html";
+                    }, 5500); // Show popup for 5.5 seconds
+                }, 1500);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
